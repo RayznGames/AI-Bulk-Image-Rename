@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""
-Image Renamer (BLIP version) - (BLIP 2 is hidden because is way more expensive and has more memory constraints) 
-
-* Reads all image files in a directory.
-* Generates a short caption for each image with the BLIP image to text pipeline.
-* Sanitises that caption and uses it as the new file name avoiding duplicates.
-
-"""
 # Dependecies to install in your .venv
 #    pip install torch pillow tqdm transformers
 
@@ -29,9 +21,8 @@ import argparse
 import logging
 import os
 from pathlib import Path
-#Makes sure we use only the contained AI model files within the local systm
+#Makes sure we use only the contained AI model files within the local system
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
-#import re
 
 import torch
 from PIL import Image
@@ -40,8 +31,10 @@ from transformers import BlipProcessor, BlipForConditionalGeneration # - Smaller
 #from transformers import Blip2Processor, Blip2ForConditionalGeneration # - Bigger model
 
 SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".exr", ".tga"}
+CACHE_PATH = "ModelFiles"
 MAX_RENAME_ATTEMPTS = 1000
 FILTER_START_OUTPUT = {"a ","an ","the " , "of a ", "image of a ", "illustration of a ", "black and white", "icon of a "}
+PROMPT_TEXT = "This picture shows" 
 
 
 #Sets up logging dor the console.
@@ -51,23 +44,24 @@ def setup_logging():
         format="%(levelname)s: %(message)s",
     )
 
-def load_blip_base(device="cpu"):
+def load_blip_base(device="cpu", localfiles:bool = False ):
     #Load the BLIP image captioning model 350m from Local drive- "Salesforce/blip-image-captioning-base"        
-    cache_path = "ModelFiles"   #Local AI model files path
+    #cache_path = "ModelFiles"   #Local AI model files path
     model_name = "Salesforce/blip-image-captioning-base"    #The model name to load 
     #Prepare config
     config_cls = BlipForConditionalGeneration.config_class   #AutoConfig
     cfg = config_cls.from_pretrained(
         model_name,
-        cache_dir=cache_path,
-        local_files_only=True,          # you already have the files locally
+        cache_dir= CACHE_PATH,
+        local_files_only=True, 
+        tie_word_embeddings = False         # you already have the files locally
     )
-    cfg.tie_word_embeddings = False
+    #cfg.tie_word_embeddings = False
  
     logging.info("Loading BLIP (Lightweight) (image to text) pipeline…")
     #Load processor and model
-    processor = BlipProcessor.from_pretrained(model_name, cache_path, local_files_only=True)
-    model = BlipForConditionalGeneration.from_pretrained(model_name, config=cfg, cache_dir= cache_path, local_files_only=True).to(device)
+    processor = BlipProcessor.from_pretrained(model_name, CACHE_PATH, local_files_only= localfiles)
+    model = BlipForConditionalGeneration.from_pretrained(model_name, config= cfg, cache_dir= CACHE_PATH, local_files_only= localfiles).to(device)
     return processor, model
 
 def get_image_paths(folder: Path):
@@ -83,9 +77,9 @@ def get_image_paths(folder: Path):
     return sorted(images, key=lambda p: p.name.lower())
 
 def sanitize_filename(text):
-    # Replace whitespace (including multiple) with single underscore
+    # Replace whitespace with single underscore
     underscored = "_".join(text.split()) #we split by the spaces and join the splits with an underscore
-    return underscored.strip("_") #or "untitled"
+    return underscored.strip("_")
 
 
 def generate_caption(img_path, processor, model, device):
@@ -95,11 +89,10 @@ def generate_caption(img_path, processor, model, device):
     try:
         image = Image.open(img_path).convert("RGB")       
     except Exception as e:
-        #logging.warning(f"Could not open {img_path}: {e}")
-        return None
-    
-    prompt_text = "This picture shows"    
-    inputs = processor( images=image, text=prompt_text, return_tensors="pt").to(device)
+        logging.warning(f"Could not open {img_path}: {e}")
+        return None    
+       
+    inputs = processor( images=image, text=PROMPT_TEXT, return_tensors="pt").to(device)
     with torch.no_grad():
         #generated_ids = model.generate(**inputs, max_length=50) 
         generated_ids = model.generate(**inputs, max_new_tokens=20,
@@ -111,9 +104,9 @@ def generate_caption(img_path, processor, model, device):
         
     caption = processor.decode(generated_ids[0], skip_special_tokens=True)
 
-    # Remove the prompt words (case‑insensitive)
-    if caption.lower().startswith(prompt_text.lower()):
-        caption = caption[len(prompt_text):].lstrip()    
+    # Remove the prompt from output
+    if caption.lower().startswith(PROMPT_TEXT.lower()):
+        caption = caption[len(PROMPT_TEXT):].lstrip()    
     
     # Change or remove filter start output at your needs
     for item in FILTER_START_OUTPUT:
@@ -123,33 +116,31 @@ def generate_caption(img_path, processor, model, device):
 
 
 def safe_rename(src: Path, new_name_base: str):
-    ext = src.suffix.lower()
-    new_name = f"{new_name_base}"   
-    f_candidate = src.parent / f"{new_name}{ext}"
+    ext = src.suffix.lower()    
+    f_candidate = src.parent / f"{new_name_base}{ext}"
     #Test final candidate existance
     if not f_candidate.exists():       
         os.rename(src,f_candidate)
         return f_candidate    
     #Duplicate name we need ad count num to rename!!
     for i in range(MAX_RENAME_ATTEMPTS):
-        f_candidate = src.parent / f"{new_name}_{i}{ext}"
+        f_candidate = src.parent / f"{new_name_base}_{i}{ext}"
         if not f_candidate.exists():
             try:
                 os.rename(src, f_candidate)
                 return f_candidate
             except Exception as e:
                 logging.warning(f"Rename failed: {src} -> {f_candidate}: {e}")
-                break               
-  
+                break
     # Final fallback – keep original name
     logging.info(f"Keeping original name for {src.name}")
     return src
 
-
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    logging.info(f"Using device: {device}")       
-    processor, model = load_blip_base(device) #Change this to - load_blip2_model(device) for the big model
+    logging.info(f"Using device: {device}")  
+
+    processor, model = load_blip_base(device, True) #Change this to - load_blip2_model(device) for the big model
 
     folder = Path(args.folder).expanduser().resolve()
     image_paths = get_image_paths(folder)
@@ -159,7 +150,7 @@ def main(args):
 
     rename_log = []
 
-    #Processing tqdm bar 
+    #Processing tqdm progress bar 
     for img_path in tqdm.tqdm(image_paths, desc="Inferencing images"):
         caption = generate_caption(img_path, processor, model, device)
 
