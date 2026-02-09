@@ -32,14 +32,16 @@ pip install torch pillow tqdm transformers
 ---
 
 # Model Files
-If you clone the repository you can skip the next DownloadSteps
 ## Clone BLIP from Huggingface/Salsforce/blip_captioning_Base model
+If you clone the repository you can skip the next DownloadSteps
+
 Clone from: `https://huggingface.co/Salesforce/blip-image-captioning-base`
-By copying the cloned BLIP model repo files into the ModelFiles folder yo will have your local model files
+
+By copying the downloaded BLIP model repo folder into the `ModelFiles` folder you will have your local model files
 
 ## 1 - First Run - Download
 The script automatically downloads the BLIP‑Base model from Hugging Face when __not using Local files only__.  
-On first run if you dont have the locl model files you **must be online** and **disable offline mode**:
+On first run if you dont have the local model files you **must be online** and **disable offline mode**:
 
 To disable only local files we need to change the flag **"TRANSFORMERS_OFFLINE"** in the OS environment 
 ```python
