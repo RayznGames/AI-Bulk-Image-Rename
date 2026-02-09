@@ -7,19 +7,6 @@ It’s perfect for bulk processing of large collections of poorly named images �
 ``` Bash
 DCIM_5486200547.jpg → Pool_in_the_exterior_with_grass_and_lawn.jpg.
 ```
-# Prerequisites
-
-Install the dependencies:
-
-```bash
-pip install torch pillow tqdm transformers
-``` 
-| Requirement | Version |
-|-------------|---------|
-| Python | ≥ 3.8 |
-| pip | – |
-
----
 
 ## Installation
 
@@ -45,15 +32,20 @@ pip install torch pillow tqdm transformers
 ---
 
 # Model Files
-The script automatically downloads the BLIP‑Base model from Hugging Face when __not using Local files only__.  
-On first run you **must be online** and **disable offline mode**:
+If you clone the repository you can skip the next DownloadSteps
+## Clone BLIP from Huggingface/Salsforce/blip_captioning_Base model
+Clone from: `https://huggingface.co/Salesforce/blip-image-captioning-base`
+By copying the cloned BLIP model repo files into the ModelFiles folder yo will have your local model files
 
 ## 1 - First Run - Download
+The script automatically downloads the BLIP‑Base model from Hugging Face when __not using Local files only__.  
+On first run if you dont have the locl model files you **must be online** and **disable offline mode**:
 
 To disable only local files we need to change the flag **"TRANSFORMERS_OFFLINE"** in the OS environment 
 ```python
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 ```
+
 As well set to false the localFiles bolean in main were you retrieve the processor and the model.
 > *load_blip_base( device, **_localfiles**)*
 
