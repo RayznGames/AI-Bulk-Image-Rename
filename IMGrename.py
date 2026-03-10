@@ -6,13 +6,12 @@
 # (Replace [ "Load_Blip_Base(device) ] with this one)
 """
 def load_blip2_model(device):
-    #Loads the BLIP 2 image captioning model and its processor = “Salesforce/blip2-opt-6.7b-coco”.   
-    cache_path = "ModelFiles"          
+    #Loads the BLIP 2 image captioning model and its processor = “Salesforce/blip2-opt-6.7b-coco”.                
     model_name = "Salesforce/blip2-opt-6.7b-coco"      
-    logging.info("Loading BLIP-2 (image to text) pipeline…")
     #Load processor and model
-    processor = Blip2Processor.from_pretrained( model_name, cache_path, device = device,  )
-    model = Blip2ForConditionalGeneration.from_pretrained( model_name, device = device,  cache_dir = cache_path).to(device)
+    logging.info("Loading BLIP-2 (image to text) pipeline…")
+    processor = Blip2Processor.from_pretrained( model_name, CACHE_PATH, local_files_only= LOCAL_FILES )
+    model = Blip2ForConditionalGeneration.from_pretrained( model_name, device = device,  cache_dir = CACHE_PATH, local_files_only= LOCAL_FILES).to(device)
     return processor, model
 """    
 
@@ -21,14 +20,16 @@ import argparse
 import logging
 import os
 from pathlib import Path
-#Makes sure we use only the contained AI model files within the local system
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 import torch
 from PIL import Image
 import tqdm
 from transformers import BlipProcessor, BlipForConditionalGeneration # - Smaller model
 #from transformers import Blip2Processor, Blip2ForConditionalGeneration # - Bigger model
+
+#Makes sure we download or use the local model files.
+os.environ["TRANSFORMERS_OFFLINE"] = "0" #Change to 1 for offline mode
+LOCAL_FILES:bool = False #False for downloading 
 
 SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".exr", ".tga"}
 CACHE_PATH = "ModelFiles"
@@ -37,31 +38,27 @@ FILTER_START_OUTPUT = {"a ","an ","the " , "of a ", "image of a ", "illustration
 PROMPT_TEXT = "This picture shows" 
 
 
-#Sets up logging dor the console.
+#Sets up logging for the console.
 def setup_logging():
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s: %(message)s",
     )
 
-def load_blip_base(device="cpu", localfiles:bool = False ):
+def load_blip_base(device="cpu"):
     #Load the BLIP image captioning model 350m from Local drive- "Salesforce/blip-image-captioning-base"        
-    #cache_path = "ModelFiles"   #Local AI model files path
     model_name = "Salesforce/blip-image-captioning-base"    #The model name to load 
     #Prepare config
-    config_cls = BlipForConditionalGeneration.config_class   #AutoConfig
+    config_cls = BlipForConditionalGeneration.config_class   #AutoConfig   
     cfg = config_cls.from_pretrained(
         model_name,
         cache_dir= CACHE_PATH,
-        local_files_only=True, 
-        tie_word_embeddings = False         # you already have the files locally
+        local_files_only=LOCAL_FILES, 
     )
-    #cfg.tie_word_embeddings = False
- 
-    logging.info("Loading BLIP (Lightweight) (image to text) pipeline…")
     #Load processor and model
-    processor = BlipProcessor.from_pretrained(model_name, CACHE_PATH, local_files_only= localfiles)
-    model = BlipForConditionalGeneration.from_pretrained(model_name, config= cfg, cache_dir= CACHE_PATH, local_files_only= localfiles).to(device)
+    logging.info("Loading BLIP (Lightweight) (image to text) pipeline…")
+    processor = BlipProcessor.from_pretrained(model_name, CACHE_PATH, local_files_only= LOCAL_FILES)
+    model = BlipForConditionalGeneration.from_pretrained(model_name, config= cfg, cache_dir= CACHE_PATH, local_files_only= LOCAL_FILES).to(device)
     return processor, model
 
 def get_image_paths(folder: Path):
@@ -95,11 +92,18 @@ def generate_caption(img_path, processor, model, device):
     inputs = processor( images=image, text=PROMPT_TEXT, return_tensors="pt").to(device)
     with torch.no_grad():
         #generated_ids = model.generate(**inputs, max_length=50) 
-        generated_ids = model.generate(**inputs, max_new_tokens=20,
-                                        num_beams=25,         
+        generated_ids = model.generate(**inputs, max_new_tokens=30,
+                                        num_beams=30,         
                                         min_length=2,                      
-                                        repetition_penalty=1.75,                                        
-                                        no_repeat_ngram_size=20,                                        
+                                        repetition_penalty=2.0,                                        
+                                        no_repeat_ngram_size=20,
+                                        diversity_penalty = 0.5,
+                                        use_cache = False,    
+                                        #Careful enabling theese (Improves quality)
+                                        #custom_generate='transformers-community/group-beam-search',
+                                        #num_beam_groups = 3,
+                                        #num_return_sequences=3,
+                                        #trust_remote_code=True, #Carefull for malixious code!!!
                                         early_stopping=True)
         
     caption = processor.decode(generated_ids[0], skip_special_tokens=True)
@@ -140,7 +144,7 @@ def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logging.info(f"Using device: {device}")  
 
-    processor, model = load_blip_base(device, True) #Change this to - load_blip2_model(device) for the big model
+    processor, model = load_blip_base(device) #Change this to - load_blip2_model(device) for the big model
 
     folder = Path(args.folder).expanduser().resolve()
     image_paths = get_image_paths(folder)

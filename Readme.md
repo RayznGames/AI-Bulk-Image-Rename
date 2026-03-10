@@ -7,8 +7,10 @@ It’s perfect for bulk processing of large collections of poorly named images �
 ``` Bash
 DCIM_5486200547.jpg → Pool_in_the_exterior_with_grass_and_lawn.jpg.
 ```
+## Video Showcase
+[![ Image ](attachments/Thumb_YT.png) ]( https://www.youtube.com/watch?v=LBOxcWDih8s )
 
-## Installation
+# Installation
 
 ### 1 - Clone the repository
 ```bash
@@ -24,71 +26,84 @@ source .venv/bin/activate
 ### 3 - Install dependencies
 
 ```bash
-pip install -r requirements.txt  
+pip install -r requirements.txt
+``` 
+Or
+```bash
 pip install torch pillow tqdm transformers
 ``` 
-> **Tip**: If you want to use a CUDA GPU for inference, make sure you have a compatible CUDA installation and `torch` compiled for it.
-
+> **Tip**: If you want to use a GPU for inference, make sure you have a compatible CUDA installation.
 ---
 
-# Model Files
-## Clone BLIP from Huggingface/Salsforce/blip_captioning_Base model
-If you clone the repository you can skip the next DownloadSteps
-
-Clone from: `https://huggingface.co/Salesforce/blip-image-captioning-base`
-
-By copying the downloaded BLIP model repo folder into the `ModelFiles` folder you will have your local model files
+# Model Files Base (Reccommended)
 
 ## 1 - First Run - Download
-The script automatically downloads the BLIP‑Base model from Hugging Face when __not using Local files only__.  
-On first run if you dont have the local model files you **must be online** and **disable offline mode**:
+The script by default will **automatically download the BLIP‑Base model** from the Hugging Face repository 
 
-To disable only local files we need to change the flag **"TRANSFORMERS_OFFLINE"** in the OS environment 
-```python
-os.environ["TRANSFORMERS_OFFLINE"] = "0"
+Once you run the script for the first time the downloaded model is stored in a folder named `ModelFiles` located next to the script.  
+If you wish to use a different directory, change the `CACHE_PATH` variable in the top of the script.
+
+```bash
+SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".exr", ".tga"}
+CACHE_PATH = "ModelFiles" <----------------Here!
+MAX_RENAME_ATTEMPTS = 1000
+FILTER_START_OUTPUT = {"a ","an ","the " , "of a ", "image of a ", "illustration of a ", "black and white", "icon of a "}
+PROMPT_TEXT = "This picture shows" 
 ```
 
-As well set to false the localFiles bolean in main were you retrieve the processor and the model.
-> *load_blip_base( device, **_localfiles**)*
-
-```python
- processor, model = load_blip_base(device, False)
-```
-Once you run the script the downloaded model is stored in a folder named `ModelFiles` located next to the script.  
-If you wish to use a different directory, change the `CACHE_PATH` variable in the script.
-
+You can change:
+- **SUPPORTED EXTENSIONS** - _The supported image extensions to your own needs to avoid renaming certain filetypes._
+- **MAX RENAME ATTEMPTS** - _Hard limit of images with name + N (last N being the hard limit)_
+- **FILTER START OUTPUT** - _Filter words from appearing in the beggining of the output, (Is additive)_
+- **PROMPT TEXT** - _The prompt used for steering image-to-text Captioning Inference_
 
 ## 2- Offline usage
-After the first download, you can switch to offline mode by setting:
-> ```python
-> os.environ["TRANSFORMERS_OFFLINE"] = "1"
-> ```
-Finally set back to true the usage of LocalFiles in 
->*load_blip_base( device, **_localfiles**)*
+- After the first download, you can switch to offline mode for 0 HTTP requests by setting the flag **"TRANSFORMERS_OFFLINE"** to **1** in the OS environment 
+
+- As well set to **TRUE** the localFiles bolean under **TRANSFORMERS_OFFLINE**
 
 ```python
- processor, model = load_blip_base(device, True)
+# Makes sure we download or use only the local model files.
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+LOCAL_FILES:bool = True
 ```
----
+
+## Or... Clone BLIP from Huggingface/Salesforce/blip-image-captioning-base
+If you clone the model files repository to the ModelFiles folder you can go back to offline usage and set the offline variable to true
+
+**Clone from:**
+- `https://huggingface.co/Salesforce/blip-image-captioning-base`
+- [` HuggingFace Salesforce BLIP Model` ]( https://huggingface.co/Salesforce/blip-image-captioning-base`)
+
+By copying the downloaded BLIP model folder into the `ModelFiles` folder you will have your local model files and can run the script locally normally
+# Model Files Coco (Not usable for consumer GPU's)
+> **Note:**  _These model files are +20 gb and require +20Gb of VRAM or RAM to load the weights and run inference
+this is only viable to use if you have a server or computer with the recources available to load them_
+
+For the blip2-coco model. At the top of the script you will find instructions in how to replace the model loaded. with a hidden premade function.
+
+After the replacement follow the **same download procedures** as with the base model.
+
+> _**CAUTION:** The download time will be long be patient_
 
 # Usage
 
 ```bash
-python Auto_img_Rename.py /<PATH_TO_IMAGES>
+python3 IMGrename.py </PATH_TO_IMAGES>
 ```
-- **`--input-dir`** – Folder containing all the images to be renamed. 
+- **`</PATH_TO_IMAGES>`** – Folder containing all the images to be renamed. 
 
-For AI inference **`device`** Defaults to `CPU`; and automatically uses `cuda` if a GPU with CUDA is available.
+> For AI inference the **`device`** Defaults to **`CPU`**; and automatically uses **`CUDA`** if a GPU with CUDA is available.
 ### Example
 
 ```bash
-python rename_images.py ./photos
+python3 IMGrename.py ./photos
 ```
 Once started will create a progress bar for all the image renames done
 ```
 Inferencing Images - ■■□□□□□□- 54/255
 ```
-After the script finishes, you’ll see an output similar to:
+After the script finishes, the program will `LOG` an output similar to:
 ```
 ...
 Renaming: DCIM_5486200547.jpg → Pool_in_the_exterior_with_grass_and_lawn.jpg
@@ -127,6 +142,11 @@ generated_ids = model.generate(
 
 Below is a quick reference table of all available arguments (taken from the Hugging Face `transformers` docs). 
 - [` HuggingFace Transformers BLIP Docs` ]( https://huggingface.co/docs/transformers/v4.44.1/model_doc/blip#transformers.BlipForConditionalGeneration )
+
+## Quick Config Table
+- [`Table contents Source - BLIP pretrained Config Docs` ]( https://huggingface.co/docs/transformers/v4.44.1/en/main_classes/configuration#transformers.PretrainedConfig )
+
+> Check **Parameters for sequence generation**
 
 | Argument | Type | Default | What it does |
 |----------|------|---------|--------------|
@@ -168,9 +188,9 @@ Below is a quick reference table of all available arguments (taken from the Hugg
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| **Out‑of‑Memory (CUDA)** | Using `num_beams` > 1 on a GPU with limited VRAM. | Reduce `num_beams`, use CPU (`--device cpu`) or split the batch into smaller chunks. |
-| **Model download fails** | Offline mode enabled during first run. | Make sure `TRANSFORMERS_OFFLINE=0` and you have an internet connection when running for the first time. |
-| **Missing dependencies** | `torch`, `transformers`, etc. not installed. | Run `pip install torch pillow tqdm transformers`|
+| **CUDA out of memory** | GPU with limited VRAM Resources| Reduce `num_beams`, use CPU (`--device cpu`) or split the batch into smaller chunks or Free VRAM by deloading other loaded AI models or closing graphics related applications |
+| **Model download fails** | Offline mode enabled during first run. | Make sure `TRANSFORMERS_OFFLINE= "0"` with `LOCAL_FILES= True` and that you have an internet connection when running for the first time. |
+| **Missing dependencies** | **requirements.txt** not installed. | Run `pip install torch pillow tqdm transformers` or Run `pip install requirements.txt`|
 | **Wrong file names after rename** | Prompt or generation parameters produce ambiguous captions. | Adjust `prompt_text` or customize generation parameters |
 
 ---
