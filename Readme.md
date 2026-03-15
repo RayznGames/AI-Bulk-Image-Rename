@@ -73,7 +73,7 @@ If you clone the model files repository to the ModelFiles folder you can go back
 
 **Clone from:**
 - `https://huggingface.co/Salesforce/blip-image-captioning-base`
-- [` HuggingFace Salesforce BLIP Model` ]( https://huggingface.co/Salesforce/blip-image-captioning-base`)
+- [`HuggingFace Salesforce BLIP Model`](https://huggingface.co/Salesforce/blip-image-captioning-base)
 
 By copying the downloaded BLIP model folder into the `ModelFiles` folder you will have your local model files and can run the script locally normally
 # Model Files Coco (Not usable for consumer GPU's)
